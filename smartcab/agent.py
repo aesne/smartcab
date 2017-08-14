@@ -8,7 +8,7 @@ class LearningAgent(Agent):
     """ An agent that learns to drive in the Smartcab world.
         This is the object you will be modifying. """ 
 
-    def __init__(self, env, learning=False, epsilon=1.0, alpha=0.5, a=0.8):
+    def __init__(self, env, learning=False, epsilon=1.0, alpha=0.5, a=1.0):
         super(LearningAgent, self).__init__(env)     # Set the agent in the evironment 
         self.planner = RoutePlanner(self.env, self)  # Create a route planner
         self.valid_actions = self.env.valid_actions  # The set of valid actions
@@ -46,16 +46,16 @@ class LearningAgent(Agent):
             self.alpha = 0.0
         else:
             '''
-            # Linear function: epsilon_t+1 = epsilon_t - 0.05
+            # 2: Linear function: epsilon_t+1 = epsilon_t - a
             if self.epsilon > 0.01:
-                self.epsilon -= 0.05
+                self.epsilon -= self.a
             else:
                 self.epsilon = 0.0
             '''
-            
-            # Exponential function: epsilon = a ^ t, for 0<a<1
+            '''
+            # 1: Exponential function: epsilon = a ^ t, for 0<a<1
             self.epsilon *= self.a
-            
+            '''
             '''
             # Power function: epsilon = t ^ (-2)
             self.epsilon = self.t ** (-2)
@@ -66,11 +66,11 @@ class LearningAgent(Agent):
             self.epsilon = math.exp(-1 * self.a * self.t)
             self.t += 1
             '''
-            '''
-            # Trigonometric function: epsilon = cos(a*t), for 0<a<1
+            
+            # 3: Trigonometric function: epsilon = cos(a*t), for 0<a<1
             self.epsilon = math.cos(self.a * self.t)
             self.t += 1
-            '''
+            
             
         return None
 
@@ -88,7 +88,7 @@ class LearningAgent(Agent):
         ## TO DO ##
         ###########
         # Set 'state' as a tuple of relevant data for the agent        
-        state = (waypoint, inputs['light'], inputs['left'], inputs['oncoming'])
+        state = (waypoint, inputs['light'], inputs['left'], inputs['right'], inputs['oncoming'])
 
         return state
 
@@ -101,10 +101,8 @@ class LearningAgent(Agent):
         ## TO DO ##
         ###########
         # Calculate the maximum Q-value of all actions for a given state
-        q = [self.Q[state][action] for action in self.valid_actions]
-        maxQ = max(q)
-
-        return maxQ 
+        
+        return max(self.Q[state].values()) 
 
 
     def createQ(self, state):
@@ -117,8 +115,7 @@ class LearningAgent(Agent):
         # If it is not, create a new dictionary for that state
         #   Then, for each action available, set the initial Q-value to 0.0
         if self.learning:
-            initial = {action:0.0 for action in self.valid_actions}
-            self.Q.setdefault(state, initial)
+            self.Q.setdefault(state, {action:0.0 for action in self.valid_actions})
         
         return
 
@@ -145,6 +142,7 @@ class LearningAgent(Agent):
             if random.random() < self.epsilon:
                 action = random.choice(self.valid_actions)
             else:
+                '''
                 q = [self.Q[state][action] for action in self.valid_actions]
                 maxQ = max(q)
                 count = q.count(maxQ)
@@ -154,6 +152,12 @@ class LearningAgent(Agent):
                 else:
                     i = q.index(maxQ)
                 action = self.valid_actions[i]
+                '''
+                # Try to avoid transforming from dict() to list(),
+                # and return index from the list()
+                maxQ = self.get_maxQ(state)
+                max_keys = [k for k, v in self.Q[state].items() if v == maxQ]
+                action = random.choice(max_keys)
                 	
         return action
 
@@ -206,7 +210,7 @@ def run():
     #   learning   - set to True to force the driving agent to use Q-learning
     #    * epsilon - continuous value for the exploration factor, default is 1
     #    * alpha   - continuous value for the learning rate, default is 0.5
-    agent = env.create_agent(LearningAgent, learning=True, a=0.99)
+    agent = env.create_agent(LearningAgent, learning=True, a=0.1)
     
     ##############
     # Follow the driving agent
